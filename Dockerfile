@@ -31,7 +31,6 @@ RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 && 
     update-alternatives --install /usr/bin/opt opt /usr/bin/opt-20 100
 
 # Create work directory
-WORKDIR /app
 ENV LLVMCONFIG=llvm-config-20
 
 # ---- Install Node.js Dependencies ----
