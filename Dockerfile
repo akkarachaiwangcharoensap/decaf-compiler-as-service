@@ -46,7 +46,8 @@ RUN \
 COPY . .
 
 # Build native Decaf compiler binary (adjust path as needed)
-RUN make -C src/compiler/answer decafcomp
+RUN rm -rf src/compiler/answer/decafcomp && \
+    make -C src/compiler/answer decafcomp
 
 # Ensure llvm-run is executable (if you're using it directly)
 RUN chmod +x src/compiler/llvm-run
