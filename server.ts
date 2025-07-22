@@ -1,4 +1,6 @@
 import express from 'express'
+import cors from 'cors'
+
 import { json } from 'body-parser'
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { existsSync } from 'fs'
@@ -10,6 +12,13 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 const compilerDir = resolve(process.cwd(), 'src/compiler')
 const app = express()
+
+app.use(cors({
+  origin: '*',
+  methods: ['POST', 'GET'],
+  allowedHeaders: ['Content-Type']
+}))
+
 app.use(json())
 
 app.post('/compile', async (req, res) => {
