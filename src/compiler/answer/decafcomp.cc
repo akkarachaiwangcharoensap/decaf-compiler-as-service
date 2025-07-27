@@ -31,6 +31,20 @@ string getString(decafAST *d) {
 	}
 }
 
+inline std::string llvmTypeToString(llvm::Type *T) {
+    std::string s;
+    llvm::raw_string_ostream os(s);
+    T->print(os);
+    return os.str();
+}
+
+inline llvm::Value* coerceToInt32(llvm::IRBuilder<>& builder, llvm::Value* val) {
+    if (val->getType()->isIntegerTy(1)) {
+        return builder.CreateZExt(val, llvm::Type::getInt32Ty(builder.getContext()), "boolToInt");
+    }
+    return val;
+}
+
 template <class T>
 string commaList(list<T> vec) {
     string s("");

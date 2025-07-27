@@ -17,13 +17,17 @@ public:
 
     llvm::Value* Codegen(CodegenContext& ctx) override {
         llvm::Value* condVal = Cond->Codegen(ctx);
-        
+        llvm::Type* cond_type = condVal->getType();
+        if (!cond_type->isIntegerTy(1)){
+            std::string msg = "If condition needs to be a boolean value, currently " + getString(Cond) + " is considered this type " + llvmTypeToString(cond_type);
+            throw std::runtime_error(msg);
+        }
         // Convert the condition to a boolean (i1) by comparing against 0
-        condVal = ctx.builder.CreateICmpNE(
-            condVal, 
-            llvm::ConstantInt::get(condVal->getType(), 0), 
-            "ifcond"
-        );
+        // condVal = ctx.builder.CreateICmpNE(
+        //     condVal, 
+        //     llvm::ConstantInt::get(condVal->getType(), 0), 
+        //     "ifcond"
+        // );
 
         // Get the current function of which we are appending basic blocks
         llvm::Function* function = ctx.builder.GetInsertBlock()->getParent();
@@ -56,14 +60,14 @@ public:
 
         // If 'then' block didn't end with a terminator (like return/br), 
         // add a branch to merge block
-        if (!thenBB->getTerminator())
+        if (!ctx.builder.GetInsertBlock()->getTerminator())
             ctx.builder.CreateBr(mergeBB);
 
         // Generate 'else' block if exists
         if (Else) {
             ctx.builder.SetInsertPoint(elseBB);
             Else->Codegen(ctx);
-            if (!elseBB->getTerminator())
+            if (!ctx.builder.GetInsertBlock()->getTerminator())
                 ctx.builder.CreateBr(mergeBB);
         }
 
@@ -105,7 +109,11 @@ public:
 
         // Generate code for the loop condition expression
         llvm::Value* condVal = Cond->Codegen(ctx);
-
+        llvm::Type* cond_type = condVal->getType();
+        if (!cond_type->isIntegerTy(1)){
+            std::string msg = "While condition needs to be a boolean value, currently " + getString(Cond) + " is considered this type " + llvmTypeToString(cond_type);
+            throw std::runtime_error(msg);
+        }
         // Convert the result to a boolean by checking if it is not equal to 0
         condVal = ctx.builder.CreateICmpNE(
             condVal,
@@ -191,7 +199,11 @@ public:
 
         // Generate code for the loop condition expression
         llvm::Value* condVal = Cond->Codegen(ctx);
-
+        llvm::Type* cond_type = condVal->getType();
+        if (!cond_type->isIntegerTy(1)){
+            std::string msg = "While condition needs to be a boolean value, currently " + getString(Cond) + " is considered this type " + llvmTypeToString(cond_type);
+            throw std::runtime_error(msg);
+        }
         // Convert the condition result to a boolean (i1)
         condVal = ctx.builder.CreateICmpNE(
             condVal,
@@ -246,11 +258,44 @@ public:
     }
 
     llvm::Value* Codegen(CodegenContext& ctx) override {
+        llvm::Function *F = ctx.builder.GetInsertBlock()->getParent();
+        llvm::Type     *RetTy = F->getReturnType();
+
         if (Expr) {
             llvm::Value* val = Expr->Codegen(ctx);
+            llvm::Type* val_type = val->getType();
+            if (RetTy->isVoidTy()){
+                std::string msg = "Void functions can not return an expression " +
+                                F->getName().str();
+                throw std::runtime_error(msg);
+            }
+            else if (val_type != RetTy) {
+                std::string msg = "return type mismatch in function '" + F->getName().str() +
+                                "': expected " + llvmTypeToString(RetTy) +
+                                ", got " + llvmTypeToString(val_type) +
+                                " from expression " + getString(Expr);
+                throw std::runtime_error(msg);
+            }
             return ctx.builder.CreateRet(val);
         } else {
-            return ctx.builder.CreateRetVoid();
+            if (RetTy->isIntegerTy(1)){
+                // return a bool that is true
+                return ctx.builder.CreateRet(
+                    llvm::ConstantInt::get(RetTy, 1, false) // false = unsigned
+                );
+            }
+            else if (RetTy->isIntegerTy(32)){
+                // return an int that is 0
+                return ctx.builder.CreateRet(
+                    llvm::ConstantInt::get(RetTy, 0, true)  // true = signed
+                );
+            }
+            else if (RetTy->isVoidTy()){
+                return ctx.builder.CreateRetVoid();
+            }
+            else{
+                throw std::runtime_error("Type of funciton was not bool int or void. RetrunAST");
+            }
         }
     }
 };

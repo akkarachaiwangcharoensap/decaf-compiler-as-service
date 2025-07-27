@@ -59,7 +59,7 @@ public:
 
     int parseIntLiteral(const std::string& value) {
         try {
-            return std::stoi(value, nullptr, 0); // base 0 autodetects 0x (hex), 0 (octal), etc.
+            return std::stoll(value, nullptr, 0); // base 0 autodetects 0x (hex), 0 (octal), etc.
         } catch (const std::invalid_argument& e) {
             throw std::runtime_error("Invalid numeric literal: " + value);
         } catch (const std::out_of_range& e) {
@@ -176,6 +176,10 @@ public:
 
             std::string varName = id->str();
 
+            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(varName)){
+                throw std::runtime_error("Identifier already exits in scope " + varName);
+            }
+
             // Create the global variable with external linkage
             llvm::GlobalVariable* gvar = new llvm::GlobalVariable(
                 *ctx.module,
@@ -232,6 +236,9 @@ public:
             }
 
             std::string arrayName = id->str();
+            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(arrayName)){
+                throw std::runtime_error("Identifier already exits in scope " + arrayName);
+            }
             ArrayType* arrType = dynamic_cast<ArrayType*>(ArrayAST);
             if (!arrType) {
                 throw std::runtime_error("Expected ArrayType in ArrayDeclAST");
@@ -242,7 +249,9 @@ public:
             llvm::Type* llvmElemType = getLLVMTypeFromString(elemTypeStr, ctx.llvmContext);
 
             int arraySize = std::stoi(arrType->getSize());
-
+            if (arraySize <= 0) {
+                throw std::runtime_error("Array index cannot be negative or zero: " + std::to_string(arraySize));
+            }
             llvm::ArrayType* llvmArrayTy = llvm::ArrayType::get(llvmElemType, arraySize);
             llvm::Constant* zeroInit = llvm::ConstantAggregateZero::get(llvmArrayTy);
 
@@ -305,6 +314,10 @@ public:
 
             std::string varName = id->str();
 
+            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(varName)){
+                throw std::runtime_error("Identifier already exits in scope " + varName);
+            }
+
             // Create a global variable with the constant initializer
             llvm::GlobalVariable* gvar = new llvm::GlobalVariable(
                 *ctx.module,
@@ -358,10 +371,17 @@ public:
                 throw std::runtime_error("Invalid identifier in variable declaration");
             }
 
-            llvm::Type* llvmType = getLLVMTypeFromString(getString(Type), ctx.llvmContext);
-            
             std::string varName = id->str();
+
+            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(varName)){
+                throw std::runtime_error("Identifier already exits in scope " + varName);
+            }
+
+            llvm::Type* llvmType = getLLVMTypeFromString(getString(Type), ctx.llvmContext);
+
             llvm::Value* alloca = ctx.builder.CreateAlloca(llvmType, nullptr, varName);
+
+            ctx.builder.CreateStore(llvm::Constant::getNullValue(llvmType), alloca);
 
             ctx.symbols.insert(varName, new Descriptor(
                 varName, Descriptor::Kind::Variable, alloca, llvmType

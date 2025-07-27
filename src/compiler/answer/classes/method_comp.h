@@ -197,6 +197,9 @@ public:
     llvm::Function* declareFunction(CodegenContext& ctx) {
         llvm::Type* RetType = getLLVMTypeFromString(ReturnType->getTypeString(), ctx.llvmContext);
 
+        if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(MethodName)){
+            throw std::runtime_error("Identifier already exits in scope " + MethodName);
+        }
         std::vector<llvm::Type*> ArgTypes;
         std::vector<std::string> ArgNames;
 

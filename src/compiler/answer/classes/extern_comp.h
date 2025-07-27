@@ -38,6 +38,10 @@ public:
     llvm::Value *Codegen(CodegenContext& ctx) override {
         std::vector<llvm::Type*> paramTypes;
 
+        
+        if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(ExternName)){
+            throw std::runtime_error("Identifier already exits in scope " + ExternName);
+        }
         // Convert ParamTypes (decafStmtList*) to llvm::Type*
         for (auto param : *ParamTypes) {
             ExternType* externType = dynamic_cast<ExternType*>(param);
@@ -78,6 +82,15 @@ public:
             ExternName,
             ctx.module
         );
+
+        Descriptor* funcDesc = new Descriptor(ExternName, function, paramTypes);
+        ctx.symbols.insert(ExternName, funcDesc);
+
+
+        char idx = 'A';
+        for (auto& arg : function->args()) {
+            arg.setName(std::string(1, idx++));
+        }
 
         return function;
     }

@@ -3,7 +3,7 @@
 #include <ostream>
 #include <string>
 #include <cstdlib>
-#include "decafcomp-defs.h"
+#include "default-defs.h"
 
 #include "classes/llvm/symbol_table.h"
 
@@ -124,12 +124,16 @@ program: extern_list decafpackage
         cout << getString(prog) << endl;
     }
 
+    // Construct LLVM objects
+    llvm::LLVMContext llvmContext;
+    llvm::IRBuilder<> builder(llvmContext);
+    auto module = std::make_unique<llvm::Module>("DecafProgram", llvmContext);
+    CodegenContext ctx(llvmContext, builder, module.get());
+
     try {
-        // Construct LLVM objects
-        llvm::LLVMContext llvmContext;
-        llvm::IRBuilder<> builder(llvmContext);
-        auto module = std::make_unique<llvm::Module>("DecafProgram", llvmContext);
-        CodegenContext ctx(llvmContext, builder, module.get());
+        
+
+        // do optimalization stuff - Sam
 
         // Push initial scope
         ctx.symbols.push_scope();
@@ -146,6 +150,11 @@ program: extern_list decafpackage
         ctx.symbols.pop_scope();
     } 
     catch (std::runtime_error &e) {
+        if (printLLVM) {
+            // module->print(llvm::outs(), nullptr);
+            module->print(llvm::errs(), nullptr);
+
+        }
         cout << "semantic error: " << e.what() << endl;
         exit(EXIT_FAILURE);
     }

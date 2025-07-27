@@ -7,7 +7,7 @@
 #include "llvm/IR/Function.h"
 #include <utility>      // std::pair, std::make_pair
 #include <string>       // std::string
-#include <iostream>     // std::cout
+#include <iostream>     // std::cerr
 #include <map>          // std::map
 #include <list>         // std::list
 
@@ -45,20 +45,20 @@ public:
     const std::vector<llvm::Type*>& getParamTypes() const { return paramTypes; }
 
     void print() const {
-        std::cout << "Descriptor(" << name << ", ";
+        std::cerr << "Descriptor(" << name << ", ";
         switch (kind) {
-            case Kind::Variable: std::cout << "Variable"; break;
-            case Kind::Function: std::cout << "Function"; break;
-            case Kind::Parameter: std::cout << "Parameter"; break;
-            case Kind::Global:   std::cout << "Global"; break;
+            case Kind::Variable: std::cerr << "Variable"; break;
+            case Kind::Function: std::cerr << "Function"; break;
+            case Kind::Parameter: std::cerr << "Parameter"; break;
+            case Kind::Global:   std::cerr << "Global"; break;
         }
-        std::cout << ", llvm::Value*=" << llvmValue;
+        std::cerr << ", llvm::Value*=" << llvmValue;
         if (kind == Kind::Function) {
-            std::cout << ", params: " << paramCount << ")";
+            std::cerr << ", params: " << paramCount << ")";
         } else {
-            std::cout << ")";
+            std::cerr << ")";
         }
-        std::cout << "\n";
+        std::cerr << "\n";
     }
 };
 
@@ -81,6 +81,16 @@ public:
         }
     }
 
+    bool Does_Identifier_Already_Exist_In_Scope(const string& ident){
+        if (stack.empty()) return false;
+        auto current_scope = stack.front();
+        auto it = current_scope.find(ident);
+        if (it != current_scope.end())
+            return true;
+        else
+            return false;
+    }
+
     Descriptor* lookup(const string& ident) {
         for (auto& scope : stack) {
             auto it = scope.find(ident);
@@ -92,11 +102,12 @@ public:
     }
 
     void print() {
+        cerr << "Symbol Table" << endl;
         for (const auto& scope : stack) {
             for (const auto& entry : scope) {
-                cout << entry.first << " -> ";
+                cerr << entry.first << " -> ";
                 entry.second->print();
-                cout << endl;
+                cerr << endl;
             }
         }
     }
