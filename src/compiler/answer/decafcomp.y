@@ -3,7 +3,7 @@
 #include <ostream>
 #include <string>
 #include <cstdlib>
-#include "default-defs.h"
+#include "decafcomp-defs.h"
 
 #include "classes/llvm/symbol_table.h"
 
