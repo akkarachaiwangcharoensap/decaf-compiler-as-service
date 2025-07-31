@@ -17,7 +17,6 @@ class Descriptor {
 public:
     enum class Kind { Variable, Function, Parameter, Global };
 
-
 private:
     std::string name;
     Kind kind;
@@ -81,7 +80,7 @@ public:
         }
     }
 
-    bool Does_Identifier_Already_Exist_In_Scope(const string& ident){
+    bool is_declared_in_current_scope(const string& ident) {
         if (stack.empty()) return false;
         auto current_scope = stack.front();
         auto it = current_scope.find(ident);

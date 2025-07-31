@@ -14,9 +14,7 @@
 #include <string>
 #include <stdexcept>
 #include <vector>
-
-extern int lineno;
-extern int tokenpos;
+#include <sstream>
 
 using namespace std;
 

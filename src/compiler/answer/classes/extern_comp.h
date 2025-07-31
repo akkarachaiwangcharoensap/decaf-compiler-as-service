@@ -16,8 +16,7 @@ public:
     }
 
     llvm::Value *Codegen(CodegenContext& ctx) override {
-		// For now, if it doesn't generate code, return nullptr
-        throw std::runtime_error("ExternType should not generate code");
+        this->semantic_error("ExternType should not generate code");
         return nullptr;
 	}
 };
@@ -38,16 +37,14 @@ public:
     llvm::Value *Codegen(CodegenContext& ctx) override {
         std::vector<llvm::Type*> paramTypes;
 
-        
-        if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(ExternName)){
-            throw std::runtime_error("Identifier already exits in scope " + ExternName);
-        }
+        if (ctx.symbols.is_declared_in_current_scope(ExternName))
+            this->semantic_error("Identifier already exits in scope " + ExternName);
+
         // Convert ParamTypes (decafStmtList*) to llvm::Type*
         for (auto param : *ParamTypes) {
             ExternType* externType = dynamic_cast<ExternType*>(param);
-            if (!externType) {
-                throw std::runtime_error("Invalid extern parameter type");
-            }
+            if (!externType)
+                this->semantic_error("Invalid extern parameter type");
 
             std::string t = externType->str();
             if (t.find("IntType") != std::string::npos) {
@@ -58,7 +55,7 @@ public:
                 paramTypes.push_back(llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(ctx.llvmContext)));
             }
             else {
-                throw std::runtime_error("Unsupported extern parameter type: " + t);
+                this->semantic_error("Unsupported extern parameter type: " + t);
             }
         }
 
@@ -72,7 +69,7 @@ public:
         } else if (retStr == "BoolType") {
             retType = llvm::Type::getInt1Ty(ctx.llvmContext);
         } else {
-            throw std::runtime_error("Unsupported extern return type: " + retStr);
+            this->semantic_error("Unsupported extern return type: " + retStr);
         }
 
         llvm::FunctionType* funcType = llvm::FunctionType::get(retType, paramTypes, false);
@@ -85,7 +82,6 @@ public:
 
         Descriptor* funcDesc = new Descriptor(ExternName, function, paramTypes);
         ctx.symbols.insert(ExternName, funcDesc);
-
 
         char idx = 'A';
         for (auto& arg : function->args()) {

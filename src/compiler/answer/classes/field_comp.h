@@ -28,7 +28,7 @@ public:
     
     llvm::Value *Codegen(CodegenContext& ctx) override {
 		// For now, if it doesn't generate code, return nullptr
-        throw std::runtime_error("ArrayType should not generate code");
+        this->semantic_error("ArrayType should not generate code");
         return nullptr;
 	}
 };
@@ -42,7 +42,7 @@ public:
     }
     llvm::Value *Codegen(CodegenContext& ctx) override {
 		// For now, if it doesn't generate code, return nullptr
-		throw std::runtime_error("ScalarType should not generate code");
+        this->semantic_error("ScalarType should not generate code");
         return nullptr;
 	}
 };
@@ -61,10 +61,12 @@ public:
         try {
             return std::stoll(value, nullptr, 0); // base 0 autodetects 0x (hex), 0 (octal), etc.
         } catch (const std::invalid_argument& e) {
-            throw std::runtime_error("Invalid numeric literal: " + value);
+            this->semantic_error("Invalid numeric literal: " + value);
         } catch (const std::out_of_range& e) {
-            throw std::runtime_error("Numeric literal out of range: " + value);
+            this->semantic_error("Numeric literal out of range: " + value);
         }
+
+        return -1;
     }
 
     std::string parseStringLiteral(const std::string& s) {
@@ -110,8 +112,10 @@ public:
             return ctx.builder.CreateGlobalString(decoded);
         }
         else {
-            throw std::runtime_error("Unsupported constant type: " + Type);
+            this->semantic_error("Unsupported constant type: " + Type);
         }
+
+        return nullptr;
     }
 };
 
@@ -127,7 +131,7 @@ public:
     }
     llvm::Value *Codegen(CodegenContext& ctx) override {
 		// For now, if it doesn't generate code, return nullptr
-		throw std::runtime_error("SimpleIDAST should not generate code");
+        this->semantic_error("SimpleIDAST should not generate code");
         return nullptr;
 	}
 };
@@ -170,15 +174,13 @@ public:
 
         for (auto stmt : *IdentList) {
             SimpleIDAST* id = dynamic_cast<SimpleIDAST*>(stmt);
-            if (!id) {
-                throw std::runtime_error("Invalid identifier in global variable declaration");
-            }
+            if (!id)
+                this->semantic_error("Invalid identifier in global variable declaration");
 
             std::string varName = id->str();
 
-            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(varName)){
-                throw std::runtime_error("Identifier already exits in scope " + varName);
-            }
+            if(ctx.symbols.is_declared_in_current_scope(varName))
+                this->semantic_error("Identifier already exists in scope '" + varName + "'");
 
             // Create the global variable with external linkage
             llvm::GlobalVariable* gvar = new llvm::GlobalVariable(
@@ -220,10 +222,8 @@ public:
             result += "FieldDecl(" + stmt->str() + "," + getString(ArrayAST) + "),";
         }
 
-
-        if (!result.empty()) {
+        if (!result.empty())
             result.pop_back();
-        }
 
         return result;
     }
@@ -231,27 +231,25 @@ public:
     llvm::Value *Codegen(CodegenContext& ctx) override {
         for (auto stmt : *IdentList) {
             SimpleIDAST* id = dynamic_cast<SimpleIDAST*>(stmt);
-            if (!id) {
-                throw std::runtime_error("Invalid identifier in array declaration");
-            }
+            if (!id)
+                this->semantic_error("Invalid identifier in array declaration");
 
             std::string arrayName = id->str();
-            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(arrayName)){
-                throw std::runtime_error("Identifier already exits in scope " + arrayName);
-            }
+            if(ctx.symbols.is_declared_in_current_scope(arrayName))
+                this->semantic_error("Identifier already exists in scope '" + arrayName + "'");
+            
             ArrayType* arrType = dynamic_cast<ArrayType*>(ArrayAST);
-            if (!arrType) {
-                throw std::runtime_error("Expected ArrayType in ArrayDeclAST");
-            }
+            if (!arrType)
+                this->semantic_error("Expected ArrayType in ArrayDeclAST");
 
             DecafType* elemType = arrType->getType();
             std::string elemTypeStr = getString(elemType);
             llvm::Type* llvmElemType = getLLVMTypeFromString(elemTypeStr, ctx.llvmContext);
 
             int arraySize = std::stoi(arrType->getSize());
-            if (arraySize <= 0) {
-                throw std::runtime_error("Array index cannot be negative or zero: " + std::to_string(arraySize));
-            }
+            if (arraySize <= 0)
+                this->semantic_error("Array index must be greater than zero: " + std::to_string(arraySize));
+            
             llvm::ArrayType* llvmArrayTy = llvm::ArrayType::get(llvmElemType, arraySize);
             llvm::Constant* zeroInit = llvm::ConstantAggregateZero::get(llvmArrayTy);
 
@@ -298,26 +296,25 @@ public:
         // Generate the constant value to assign
         llvm::Value* value = Constant->Codegen(ctx);
         if (!value)
-            throw std::runtime_error("Failed to generate constant value in FieldAssignAST");
+            this->semantic_error("Failed to generate constant value in FieldAssignAST");
 
         llvm::Type* llvmType = getLLVMTypeFromString(getString(Type), ctx.llvmContext);
 
         // Cast the constant to llvm::Constant for global initialization
         llvm::Constant* initVal = llvm::dyn_cast<llvm::Constant>(value);
         if (!initVal)
-            throw std::runtime_error("Global initializer must be a constant");
+            this->semantic_error("Global initializer must be a constant");
 
         for (auto stmt : *IdentList) {
             SimpleIDAST* id = dynamic_cast<SimpleIDAST*>(stmt);
             if (!id)
-                throw std::runtime_error("Invalid identifier in global assignment");
+                this->semantic_error("Invalid identifier in global assignment");
 
             std::string varName = id->str();
 
-            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(varName)){
-                throw std::runtime_error("Identifier already exits in scope " + varName);
-            }
-
+            if(ctx.symbols.is_declared_in_current_scope(varName))
+                this->semantic_error("Identifier already exists in scope '" + varName + "'");
+            
             // Create a global variable with the constant initializer
             llvm::GlobalVariable* gvar = new llvm::GlobalVariable(
                 *ctx.module,
@@ -357,9 +354,8 @@ public:
             result += "VarDef(" + stmt->str() + "," + getString(Type) + "),";
         }
 
-        if (!result.empty()) {
+        if (!result.empty())
             result.pop_back();
-        }
 
         return result;
     }
@@ -367,22 +363,18 @@ public:
     llvm::Value *Codegen(CodegenContext& ctx) override {
         for (auto stmt : *IdentList) {
             SimpleIDAST* id = dynamic_cast<SimpleIDAST*>(stmt);
-            if (!id) {
-                throw std::runtime_error("Invalid identifier in variable declaration");
-            }
+            if (!id)
+                this->semantic_error("Invalid identifier in variable declaration");
 
             std::string varName = id->str();
 
-            if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(varName)){
-                throw std::runtime_error("Identifier already exits in scope " + varName);
-            }
-
+            if(ctx.symbols.is_declared_in_current_scope(varName))
+                this->semantic_error("Identifier already exists in scope '" + varName + "'");
+            
             llvm::Type* llvmType = getLLVMTypeFromString(getString(Type), ctx.llvmContext);
-
             llvm::Value* alloca = ctx.builder.CreateAlloca(llvmType, nullptr, varName);
 
             ctx.builder.CreateStore(llvm::Constant::getNullValue(llvmType), alloca);
-
             ctx.symbols.insert(varName, new Descriptor(
                 varName, Descriptor::Kind::Variable, alloca, llvmType
             ));
@@ -394,30 +386,36 @@ public:
 
 class ArrayIDAST : public decafAST {
     std::string ID;
-    int Index;
+    decafAST* Index;
 
 public:
-    ArrayIDAST(std::string id, int index) : ID(id), Index(index) {}
+    ArrayIDAST(std::string id, decafAST* index) : ID(id), Index(index) {}
 
     std::string getID() { return ID; }
-    int getIndex() { return Index; }
+    decafAST* getIndex() { return Index; }
 
     std::string str() override {
-        return "ArrayLocExpr(" + ID + ",NumberExpr(" + std::to_string(Index) + "))";
+        return "ArrayLocExpr(" + ID + "," + Index->str() + ")";
     }
 
     llvm::Value* getArrayElementPtr(CodegenContext& ctx) {
         Descriptor* desc = ctx.symbols.lookup(ID);
         if (!desc)
-            throw std::runtime_error("Undeclared array: " + ID);
+            this->semantic_error("Undeclared array '" + ID + "'");
 
         llvm::Value* arrayPtr = desc->getValue();
         llvm::ArrayType* arrayType = llvm::dyn_cast<llvm::ArrayType>(desc->getType());
         if (!arrayType)
-            throw std::runtime_error("Expected array type for variable: " + ID);
+            this->semantic_error("Expected array type for: " + ID);
 
         llvm::Value* zero = llvm::ConstantInt::get(ctx.builder.getInt32Ty(), 0);
-        llvm::Value* indexVal = llvm::ConstantInt::get(ctx.builder.getInt32Ty(), Index);
+        // Evaluate the index AST expression
+        llvm::Value* indexVal = Index->Codegen(ctx);
+        if (!indexVal)
+            this->semantic_error("Invalid array index expression");
+
+        if (!indexVal->getType()->isIntegerTy(32))
+            this->semantic_error("Array index must be an integer: " + Index->str());
 
         return ctx.builder.CreateGEP(
             arrayType,
@@ -431,10 +429,12 @@ public:
         llvm::Value* elemPtr = getArrayElementPtr(ctx);
 
         Descriptor* desc = ctx.symbols.lookup(ID);
-        if (!desc) throw std::runtime_error("Undeclared array: " + ID);
+        if (!desc) 
+            this->semantic_error("Undeclared array: " + ID);
 
         llvm::ArrayType* arrayType = llvm::dyn_cast<llvm::ArrayType>(desc->getType());
-        if (!arrayType) throw std::runtime_error("Expected array type for: " + ID);
+        if (!arrayType) 
+            this->semantic_error("Expected array type for: " + ID);
 
         llvm::Type* elemType = arrayType->getElementType();
         return ctx.builder.CreateLoad(elemType, elemPtr, ID + "_val");

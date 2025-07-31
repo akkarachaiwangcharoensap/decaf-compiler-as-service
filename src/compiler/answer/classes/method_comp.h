@@ -33,9 +33,8 @@ public:
             }
         }
 
-        if (!llvmArg) {
-            throw std::runtime_error("Parameter not found in function arguments: " + Name);
-        }
+        if (!llvmArg)
+            this->semantic_error("Parameter not found in function arguments: " + Name);
 
         llvm::IRBuilder<> TmpB(&function->getEntryBlock(), function->getEntryBlock().begin());
         llvm::Type* llvmType = getLLVMTypeFromString(Type->str(), ctx.llvmContext);
@@ -92,9 +91,9 @@ public:
         llvm::Value* val = nullptr;
         if (FieldList) val = FieldList->Codegen(ctx);
         if (StmtList) val = StmtList->Codegen(ctx);
-        if (!val) {
+        if (!val)
             return llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx.llvmContext), 0);
-        }
+
         return val;
     }
 };
@@ -114,18 +113,26 @@ public:
     llvm::Value* Codegen(CodegenContext& ctx) override {
         // Retrieve the function by name
         llvm::Function* CalleeF = ctx.module->getFunction(Method);
-        if (!CalleeF) {
-            throw std::runtime_error("Unknown function: " + Method);
-        }
+        if (!CalleeF)
+            this->semantic_error("Unknown function: " + Method);
+
+		// Check argument count. Must match with function's count
+		size_t expectedArgCount = CalleeF->getFunctionType()->getNumParams();
+		size_t actualArgCount = Args ? Args->size() : 0;
+
+		if (expectedArgCount != actualArgCount) {
+			this->semantic_error("Function '" + Method
+				+ "' expects " + std::to_string(expectedArgCount) + " argument(s)"
+				+ ", but got " + std::to_string(actualArgCount));
+		}
 
         // Generate arguments for the function call
         std::vector<llvm::Value*> ArgsV;
         unsigned idx = 0;
         for (auto stmt : *Args) {
             llvm::Value* arg = stmt->Codegen(ctx);
-            if (!arg) {
-                throw std::runtime_error("Error generating argument for function: " + Method);
-            }
+            if (!arg)
+                this->semantic_error("Error generating argument for function: " + Method);
 
             llvm::Type* expectedType = CalleeF->getFunctionType()->getParamType(idx);
             llvm::Type* actualType = arg->getType();
@@ -146,7 +153,7 @@ public:
                 arg->getType()->print(actualStream);
                 expectedType->print(expectedStream);
 
-                throw std::runtime_error(
+                this->semantic_error(
                     "Argument type mismatch in call to function '" + Method +
                     "' at index " + std::to_string(idx) +
                     ":\n  Expected: " + expectedStream.str() +
@@ -195,11 +202,25 @@ public:
 
     /// Pass 1: Declare the function and insert into the module
     llvm::Function* declareFunction(CodegenContext& ctx) {
+		// Check for main specifically
+		if (MethodName == "main") {
+			// main exists already?
+			if (ctx.hasMainFunction) {
+				this->semantic_error("Multiple main functions found, only one main function allowed");
+			}
+			// main has parameters?
+			if (!ParamList.empty()) {
+				this->semantic_error("main function must have no parameters");
+			}
+			ctx.hasMainFunction = true;
+		}
+
+
         llvm::Type* RetType = getLLVMTypeFromString(ReturnType->getTypeString(), ctx.llvmContext);
 
-        if(ctx.symbols.Does_Identifier_Already_Exist_In_Scope(MethodName)){
-            throw std::runtime_error("Identifier already exits in scope " + MethodName);
-        }
+        if (ctx.symbols.is_declared_in_current_scope(MethodName))
+            this->semantic_error("Identifier already exits in scope " + MethodName);
+        
         std::vector<llvm::Type*> ArgTypes;
         std::vector<std::string> ArgNames;
 
@@ -225,7 +246,8 @@ public:
     /// Pass 2: Codegen the method body
     llvm::Value* Codegen(CodegenContext& ctx) override {
         llvm::Function* F = ctx.module->getFunction(MethodName);
-        if (!F) throw std::runtime_error("Function not declared: " + MethodName);
+        if (!F) 
+            this->semantic_error("Function not declared: " + MethodName);
 
         llvm::BasicBlock* BB = llvm::BasicBlock::Create(ctx.llvmContext, "entry", F);
         ctx.builder.SetInsertPoint(BB);
@@ -244,12 +266,16 @@ public:
         llvm::Value* bodyVal = Block->Codegen(ctx);
         if (!bodyVal) {
             F->eraseFromParent();
-            throw std::runtime_error("Error generating body for method: " + MethodName);
+            this->semantic_error("Error generating body for method: " + MethodName);
         }
 
         if (!ctx.builder.GetInsertBlock()->getTerminator()) {
             if (F->getReturnType()->isVoidTy()) {
-                ctx.builder.CreateRetVoid();
+                if (MethodName == "main") {
+                    this->semantic_error("When main returns void it currently should not be allowed.");
+                } else {
+                    ctx.builder.CreateRetVoid();
+                }
             } else {
                 ctx.builder.CreateRet(llvm::ConstantInt::get(F->getReturnType(), 0));
             }
@@ -299,6 +325,11 @@ public:
 			}
 		}
 
+		// Check if main is found
+		if (!ctx.hasMainFunction) {
+			this->semantic_error("No main function found in program");
+		}
+
 		return val;
 	}
 };
@@ -319,11 +350,13 @@ public:
 		if (ExternList) {
 			val = ExternList->Codegen(ctx);
 		}
+        
 		if (PackageDef) {
 			val = PackageDef->Codegen(ctx);
 		} else {
-			throw runtime_error("No package definition in decaf program");
+            this->semantic_error("No package definition in decaf program");
 		}
+
 		return val;
 	}
 };

@@ -8,11 +8,23 @@
 
 using namespace std;
 
+extern YYLTYPE yylloc;
+
+// int lineno = 1;
+// int tokenpos = 1;
 int lineno = 1;
-int tokenpos = 1;
+int column = 1;
 
-#define UPDATE_TOKENPOS yytext ? tokenpos += yyleng : tokenpos
+// #define UPDATE_TOKENPOS yytext ? tokenpos += yyleng : tokenpos
 
+// first column happens before codegen.
+// yylloc.first_column: -1 to offset the first character, happens before codegen.
+// yylloc.last_column: happens after codegen.
+#define YY_USER_ACTION \
+    yylloc.first_line = yylloc.last_line = lineno; \
+    yylloc.first_column = column - 1; \
+    yylloc.last_column = column + yyleng - 1; \
+    // column += yyleng;
 %}
 
 /* regexp definitions */
@@ -37,52 +49,52 @@ escaped_char (\\[nrtvfab\\'\"])
   */
 
   /* Keywords */
-bool                                        { UPDATE_TOKENPOS; return T_BOOLTYPE; }
-break                                       { UPDATE_TOKENPOS; return T_BREAK; }
-continue                                    { UPDATE_TOKENPOS; return T_CONTINUE; }
-else                                        { UPDATE_TOKENPOS; return T_ELSE; }
-extern                                      { UPDATE_TOKENPOS; return T_EXTERN; }
-false                                       { UPDATE_TOKENPOS; return T_FALSE; }
-for                                         { UPDATE_TOKENPOS; return T_FOR; }
-func                                        { UPDATE_TOKENPOS; return T_FUNC; }
-if                                          { UPDATE_TOKENPOS; return T_IF; }
-int                                         { UPDATE_TOKENPOS; return T_INTTYPE; }
-null                                        { UPDATE_TOKENPOS; return T_NULL; }
-package                                     { UPDATE_TOKENPOS; return T_PACKAGE; }
-return                                      { UPDATE_TOKENPOS; return T_RETURN; }
-string                                      { UPDATE_TOKENPOS; return T_STRINGTYPE; }
-true                                        { UPDATE_TOKENPOS; return T_TRUE; }
-var                                         { UPDATE_TOKENPOS; return T_VAR; }
-void                                        { UPDATE_TOKENPOS; return T_VOID; }
-while                                       { UPDATE_TOKENPOS; return T_WHILE; }
+bool                                        { return T_BOOLTYPE; }
+break                                       { return T_BREAK; }
+continue                                    { return T_CONTINUE; }
+else                                        { return T_ELSE; }
+extern                                      { return T_EXTERN; }
+false                                       { return T_FALSE; }
+for                                         { return T_FOR; }
+func                                        { return T_FUNC; }
+if                                          { return T_IF; }
+int                                         { return T_INTTYPE; }
+null                                        { return T_NULL; }
+package                                     { return T_PACKAGE; }
+return                                      { return T_RETURN; }
+string                                      { return T_STRINGTYPE; }
+true                                        { return T_TRUE; }
+var                                         { return T_VAR; }
+void                                        { return T_VOID; }
+while                                       { return T_WHILE; }
 
   /* Operators and Delimiters */
-\{                                          { UPDATE_TOKENPOS; return T_LCB; }  
-\}                                          { UPDATE_TOKENPOS; return T_RCB; }  
-\[                                          { UPDATE_TOKENPOS; return T_LSB; }
-\]                                          { UPDATE_TOKENPOS; return T_RSB; }
-,                                           { UPDATE_TOKENPOS; return T_COMMA; }
-;                                           { UPDATE_TOKENPOS; return T_SEMICOLON; }
-\(                                          { UPDATE_TOKENPOS; return T_LPAREN; }
-\)                                          { UPDATE_TOKENPOS; return T_RPAREN; }
-=                                           { UPDATE_TOKENPOS; return T_ASSIGN; } 
-\-                                          { UPDATE_TOKENPOS; return T_MINUS; }
-!                                           { UPDATE_TOKENPOS; return T_NOT; }
-\+                                          { UPDATE_TOKENPOS; return T_PLUS; }
-\*                                          { UPDATE_TOKENPOS; return T_MULT; }
-\/                                          { UPDATE_TOKENPOS; return T_DIV; }
-\<\<                                        { UPDATE_TOKENPOS; return T_LEFTSHIFT; }
-\>\>                                        { UPDATE_TOKENPOS; return T_RIGHTSHIFT; }
-\<                                          { UPDATE_TOKENPOS; return T_LT; }
-\>                                          { UPDATE_TOKENPOS; return T_GT; }  
-%                                           { UPDATE_TOKENPOS; return T_MOD; }
-\<=                                         { UPDATE_TOKENPOS; return T_LEQ; }
-\>=                                         { UPDATE_TOKENPOS; return T_GEQ; }
-==                                          { UPDATE_TOKENPOS; return T_EQ; }
-!=                                          { UPDATE_TOKENPOS; return T_NEQ; }
-&&                                          { UPDATE_TOKENPOS; return T_AND; }
-\|\|                                        { UPDATE_TOKENPOS; return T_OR; }
-\.                                          { UPDATE_TOKENPOS; return T_DOT; }
+\{                                          { return T_LCB; }  
+\}                                          { return T_RCB; }  
+\[                                          { return T_LSB; }
+\]                                          { return T_RSB; }
+,                                           { return T_COMMA; }
+;                                           { return T_SEMICOLON; }
+\(                                          { return T_LPAREN; }
+\)                                          { return T_RPAREN; }
+=                                           { return T_ASSIGN; } 
+\-                                          { return T_MINUS; }
+!                                           { return T_NOT; }
+\+                                          { return T_PLUS; }
+\*                                          { return T_MULT; }
+\/                                          { return T_DIV; }
+\<\<                                        { return T_LEFTSHIFT; }
+\>\>                                        { return T_RIGHTSHIFT; }
+\<                                          { return T_LT; }
+\>                                          { return T_GT; }  
+%                                           { return T_MOD; }
+\<=                                         { return T_LEQ; }
+\>=                                         { return T_GEQ; }
+==                                          { return T_EQ; }
+!=                                          { return T_NEQ; }
+&&                                          { return T_AND; }
+\|\|                                        { return T_OR; }
+\.                                          { return T_DOT; }
 
   /* Integer, Character, String literals */
 '{char_lit_chars}'|'{escaped_char}'         { 
@@ -103,40 +115,40 @@ while                                       { UPDATE_TOKENPOS; return T_WHILE; }
             case '\"': c = '\"'; break;
             default:
                 cerr << "Unknown escape sequence \\" << yytext[2]
-                     << " at line " << lineno << ", column " << tokenpos << endl;
+                     << " at line " << lineno << ", column " << column << endl;
                 c = '?'; // fallback to placeholder
         }
     }
 
     yylval.sval = new string(to_string((int)c)); 
-    UPDATE_TOKENPOS; 
     return T_CHARCONSTANT; 
 }
-\"({char_for_strings}|{escaped_char})*\"    { yylval.sval = new string(yytext); UPDATE_TOKENPOS; return T_STRINGCONSTANT; }
-{decimal_lit}|{hex_lit}                     { yylval.sval = new string(yytext); UPDATE_TOKENPOS; return T_INTCONSTANT; }
+\"({char_for_strings}|{escaped_char})*\"    { yylval.sval = new string(yytext); return T_STRINGCONSTANT; }
+{decimal_lit}|{hex_lit}                     { yylval.sval = new string(yytext); return T_INTCONSTANT; }
 
   /* Symbols */
 {letter}({letter}|{digit})*             { 
   yylval.sval = new string(yytext); 
-  UPDATE_TOKENPOS; 
   return T_ID; } /* note that identifier pattern must be after all keywords */
 
-[\n]                                    { lineno++; tokenpos = 1; /* newline */ }
-(\x0D|\x09|\x0B|\x0C|\x20)+             { UPDATE_TOKENPOS; }
+[\n]                                    { lineno++; column = 1; /* newline */ }
+  
+  /* '\r', '\t', Vertical tab, Form feed, Space */
+(\x0D|\x09|\x0B|\x0C|\x20)+             { column += yyleng; }
 
   /* Comments */
-\/\/{char_no_nl}*\n                     { lineno++; tokenpos = 1; }
+\/\/{char_no_nl}*\n                     { lineno++; column = 1; }
 . {
-    cerr << "Error at line " << lineno << ", column " << tokenpos
+    cerr << "Error at line " << lineno << ", column " << column
          << ": unexpected character '" << yytext[0] << "'" << endl;
-    tokenpos += 1;
+    column += 1;
     return -1;
 }
 
 %%
 int yyerror(const char *s) {
   cerr << "Syntax error at line " << lineno
-       << ", char " << tokenpos
+       << ", char " << column
        << " near \"" << yytext << "\": " << s << endl;
   return 1;
 }

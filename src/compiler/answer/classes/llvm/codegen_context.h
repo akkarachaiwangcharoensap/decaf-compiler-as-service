@@ -20,6 +20,9 @@ struct CodegenContext {
     // Stack of symbol tables for tracking variable scopes
     SymbolTableStack symbols;
 
+	// Track if main function is found
+	bool hasMainFunction = false;
+
     // Stack of blocks to jump to on 'break' (used in loops)
     std::stack<llvm::BasicBlock*> loopBreakStack;
 

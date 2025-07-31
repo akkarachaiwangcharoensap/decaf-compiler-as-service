@@ -123,72 +123,61 @@ public:
         if (Op == "Plus") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateAdd(L, R, "addtmp");
-            else
-                throw std::runtime_error("Addition must be ingeters in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Addition must be ingeters, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Minus") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateSub(L, R, "subtmp");
-            else
-                throw std::runtime_error("Subtraction must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Subtraction must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Mult") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateMul(L, R, "multmp");
-            else
-                throw std::runtime_error("Multiplication must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Multiplication must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Div") {
             // signed division
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateSDiv(L, R, "divtmp");
-            else
-                throw std::runtime_error("Division must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Division must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Mod") {
             // signed modulo
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateSRem(L, R, "modtmp");
-            else
-                throw std::runtime_error("Modulo must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Modulo must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Eq") {
             if (L_type != R_type) 
-                throw std::runtime_error("Types do not match in equality check: " + getString(LHS) + " vs " + getString(RHS));
+                this->semantic_error("Types do not match in equality check: " + getString(LHS) + " vs " + getString(RHS));
             return ctx.builder.CreateICmpEQ(L, R, "eqtmp");
         } else if (Op == "Neq") {
             if (L_type != R_type) 
-                throw std::runtime_error("Types do not match in inequality check: " + getString(LHS) + " vs " + getString(RHS));
+                this->semantic_error("Types do not match in inequality check: " + getString(LHS) + " vs " + getString(RHS));
             return ctx.builder.CreateICmpNE(L, R, "netmp");
         } else if (Op == "Lt") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSLT(L, R, "lttmp");
-            else
-                throw std::runtime_error("Less than must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Less than must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Leq") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSLE(L, R, "letmp");
-            else
-                throw std::runtime_error("Less than or equal must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Less than or equal must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Gt") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSGT(L, R, "gttmp");
-            else
-                throw std::runtime_error("Greater than must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Greater than must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Geq") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSGE(L, R, "getmp");
-            else
-                throw std::runtime_error("Greater than or equal must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Greater than or equal must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Leftshift") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateShl(L, R, "shltmp");
-            else
-                throw std::runtime_error("Left shift must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
-		} else if (Op == "Rightshift") {
+            this->semantic_error("Left shift must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+        } else if (Op == "Rightshift") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateLShr(L, R, "rshrtmp");
-            else
-                throw std::runtime_error("Right shift must be integers in BinaryOpAST LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
-		} else {
-            throw std::runtime_error("Unknown binary operator: " + Op);
-            return nullptr;
-        }
+            this->semantic_error("Right shift must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+        } 
+
+        this->semantic_error("Unknown binary operator: " + Op);
+        return nullptr;
     }
 };
 
@@ -209,14 +198,14 @@ public:
 
         if (Op == "UnaryMinus") {
             if (!E_type->isIntegerTy(32))
-                throw std::runtime_error("Unary minus must be applied to integers in UnaryOpAST");
+                this->semantic_error("Unary Minus can only be applied to integers.");
             return ctx.builder.CreateNeg(E, "negtmp");
         } else if (Op == "Not") {
             if (!E_type->isIntegerTy(1))
-                throw std::runtime_error("Logical NOT must be applied to booleans in UnaryOpAST");
+                this->semantic_error("Logical NOT can only be applied to booleans.");
             return ctx.builder.CreateNot(E, "nottmp");
         } else {
-            std::cerr << "Unknown unary operator: " << Op << std::endl;
+            this->semantic_error("Unknown unary operator: " + Op);
             return nullptr;
         }
     }
@@ -238,18 +227,15 @@ public:
 
     llvm::Value *Codegen(CodegenContext& ctx) override {
         Descriptor* desc = ctx.symbols.lookup(Name);
-        if (!desc) {
-            throw std::runtime_error("Undeclared variable: " + Name);
-        }
-
-        if (!desc->getValue()) {
-            throw std::runtime_error("Descriptor has null value: " + Name);
-        }
-
-        if (!desc->getType()) {
-            throw std::runtime_error("Descriptor has null type: " + Name);
-        }
-
+        if (!desc)
+            this->semantic_error("Undeclared variable: " + Name);
+        
+        if (!desc->getValue())
+            this->semantic_error("Descriptor has null value: " + Name);
+        
+        if (!desc->getType())
+            this->semantic_error("Descriptor has null type: " + Name);
+        
         return ctx.builder.CreateLoad(desc->getType(), desc->getValue(), Name + "_val");
     }
 };
@@ -272,62 +258,67 @@ public:
         // Handle scalar variable assignment
         if (auto* varExpr = dynamic_cast<VariableExprAST*>(LHS)) {
             Descriptor* desc = ctx.symbols.lookup(varExpr->getName());
-            if (!desc) {
-                throw std::runtime_error("Undeclared variable: " + varExpr->getName());
-            }
+            if (!desc)
+                this->semantic_error("Undeclared variable: " + varExpr->getName());
+            
             destPtr = desc->getValue();
             dest_type = desc->getType();
-        }
-        else {
-            throw std::runtime_error("LHS of assignment must be a variable or array access: " + LHS->str());
         }
 
         llvm::Value* rhsVal = RHS->Codegen(ctx);
 
-
-        if (!rhsVal) {
-            throw std::runtime_error("Invalid RHS expression in assignment");
-        }
-
+        if (!rhsVal)
+            this->semantic_error("Invalid RHS expression in assignment");
+        
         // need to make sure LHS and RHS types match - Sam
         
         llvm::Type* rhs_type = rhsVal->getType();
-        if (dest_type != rhs_type) {
-            throw std::runtime_error("Type mismatch in assignment: " + llvmTypeToString(dest_type) + " vs " + llvmTypeToString(rhs_type));
-        }
-
+        if (dest_type != rhs_type)
+            this->semantic_error("Type mismatch in assignment: " + llvmTypeToString(dest_type) + " vs " + llvmTypeToString(rhs_type));
+        
         return ctx.builder.CreateStore(rhsVal, destPtr);
     }
 };
 
 class ArrayAssignAST : public decafAST {
     std::string ID;
-    int Index;
+    decafAST* Key;      // changed from int to decafAST*
     decafAST* Value;
 
 public:
-    ArrayAssignAST(std::string id, int index, decafAST* value)
-        : ID(id), Index(index), Value(value) {}
+    ArrayAssignAST(std::string id, decafAST* key, decafAST* value)
+        : ID(id), Key(key), Value(value) {}
 
-    ~ArrayAssignAST() { delete Value; }
+    ~ArrayAssignAST() {
+        delete Key;
+        delete Value;
+    }
 
     std::string str() override {
-        return "AssignArrayLoc(" + ID + ",NumberExpr(" + std::to_string(Index) + ")," + getString(Value) + ")";
+        return "AssignArrayLoc(" + ID + "," + getString(Key) + "," + getString(Value) + ")";
     }
 
     llvm::Value* Codegen(CodegenContext& ctx) override {
         Descriptor* desc = ctx.symbols.lookup(ID);
-        if (!desc) throw std::runtime_error("Undeclared array: " + ID);
-
+        if (!desc) 
+            this->semantic_error("Undeclared array: " + ID);
+        
         llvm::Value* arrayPtr = desc->getValue();
-
         llvm::ArrayType* arrayType = llvm::dyn_cast<llvm::ArrayType>(desc->getType());
         if (!arrayType)
-            throw std::runtime_error("Expected array type for variable: " + ID);
+            this->semantic_error(ID + " is not an array.");
+        
+        // Codegen the index
+        llvm::Value* keyVal = Key->Codegen(ctx);
+        if (!keyVal)
+            this->semantic_error("Invalid index expression in array assignment");
+        
+        if (keyVal->getType() != ctx.builder.getInt32Ty()) {
+            keyVal = ctx.builder.CreateIntCast(keyVal, ctx.builder.getInt32Ty(), true, "key_cast");
+        }
 
         llvm::Value* zero = llvm::ConstantInt::get(ctx.builder.getInt32Ty(), 0);
-        llvm::Value* indexVal = llvm::ConstantInt::get(ctx.builder.getInt32Ty(), Index);
-        llvm::Value* elementPtr = ctx.builder.CreateGEP(arrayType, arrayPtr, {zero, indexVal}, ID + "_elt");
+        llvm::Value* elementPtr = ctx.builder.CreateGEP(arrayType, arrayPtr, {zero, keyVal}, ID + "_elt");
 
         llvm::Value* rhsVal = Value->Codegen(ctx);
         llvm::Type* elemType = arrayType->getElementType();

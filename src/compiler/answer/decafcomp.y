@@ -20,6 +20,7 @@ using namespace std;
 
 %}
 
+%locations
 %define parse.error verbose
 
 %union {
@@ -131,8 +132,6 @@ program: extern_list decafpackage
     CodegenContext ctx(llvmContext, builder, module.get());
 
     try {
-        
-
         // do optimalization stuff - Sam
 
         // Push initial scope
@@ -153,9 +152,8 @@ program: extern_list decafpackage
         if (printLLVM) {
             // module->print(llvm::outs(), nullptr);
             module->print(llvm::errs(), nullptr);
-
         }
-        cout << "semantic error: " << e.what() << endl;
+        cout << "Semantic error: " << e.what() << endl;
         exit(EXIT_FAILURE);
     }
 
@@ -167,6 +165,8 @@ extern_decl:
     T_EXTERN T_FUNC T_ID T_LPAREN extern_type_list T_RPAREN method_type T_SEMICOLON
     {
         $$ = new ExternAST(*$3, (decafStmtList *)$5, dynamic_cast<MethodType*>($7));
+        $$->setLine(@3.first_line);
+        $$->setCol(@3.first_column);
         delete $3;
     }
 ;
@@ -184,16 +184,19 @@ array_type:
     T_LSB T_INTCONSTANT T_RSB decaf_type
     {
         $$ = new ArrayType(dynamic_cast<DecafType*>($4), *$2);
+        $$->setLine(@4.first_line);
+        $$->setCol(@4.first_column);
         delete $2;
     }
 ;
 
 decaf_type:
-    T_INTTYPE      { $$ = new DecafType("IntType"); }
-    | T_BOOLTYPE     { $$ = new DecafType("BoolType"); }
+    T_INTTYPE       { $$ = new DecafType("IntType"); $$->setLine(@1.first_line); $$->setCol(@1.first_column); }
+    | T_BOOLTYPE     { $$ = new DecafType("BoolType"); $$->setLine(@1.first_line); $$->setCol(@1.first_column); }
+;
 
 extern_type:
-    T_STRINGTYPE     { $$ = new ExternType("StringType"); }
+    T_STRINGTYPE     { $$ = new ExternType("StringType"); $$->setLine(@1.first_line); $$->setCol(@1.first_column); }
 ;
 
 extern_type_list:
@@ -228,6 +231,8 @@ field_decl:
     T_VAR id_list decaf_type T_SEMICOLON
     {
         $$ = new FieldDeclAST(dynamic_cast<DecafType*>($3), $2, new ScalarType());  // DecafType + multiple vars
+        $$->setLine(@2.first_line); 
+        $$->setCol(@2.first_column);
     }
     // Global variable assignment
     | T_VAR id_list decaf_type T_ASSIGN constant T_SEMICOLON
@@ -238,6 +243,8 @@ field_decl:
             YYERROR;
         }
         $$ = new FieldAssignAST(dynamic_cast<DecafType*>($3), $2, dynamic_cast<ConstantAST*>($5));
+        $$->setLine(@2.first_line); 
+        $$->setCol(@2.first_column);
     }
     // Array
     | T_VAR id_list array_type T_SEMICOLON
@@ -371,6 +378,8 @@ assign:
         SimpleIDAST* id = dynamic_cast<SimpleIDAST*>($1);
         if (id) {
             $$ = new AssignAST(new VariableExprAST(id->str()), $3);
+            $$->setLine(@2.first_line);
+            $$->setCol(@2.first_column);
             delete id;
         } else {
             ArrayIDAST* array = dynamic_cast<ArrayIDAST*>($1);
@@ -380,6 +389,8 @@ assign:
             }
 
             $$ = new ArrayAssignAST(array->getID(), array->getIndex(), $3);
+            $$->setLine(@2.first_line);
+            $$->setCol(@2.first_column);
             delete array;
         }
     }
@@ -399,22 +410,18 @@ assign_list:
 ;
 
 lvalue:
-    T_ID                          { $$ = new SimpleIDAST(*$1); delete $1; }
-    // Array indexing
-    | T_ID T_LSB T_INTCONSTANT T_RSB       { $$ = new ArrayIDAST(*$1, std::stoi(*$3)); delete $1; }
+    T_ID                        { $$ = new SimpleIDAST(*$1); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
+    // Array
+    | T_ID T_LSB expr T_RSB     { $$ = new ArrayIDAST(*$1, $3); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
 ;
 
 method_call:
-    T_ID T_LPAREN method_args T_RPAREN
-    { $$ = new MethodCallAST(*$1, (decafStmtList *)$3); delete $1; }
+    T_ID T_LPAREN method_args T_RPAREN { $$ = new MethodCallAST(*$1, (decafStmtList *)$3); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
 ;
 
 method_arg:
-    expr { $$ = $1; }
-    | T_STRINGCONSTANT {
-        $$ = new ConstantAST("StringConstant", *$1);
-        delete $1;
-    }
+    expr                        { $$ = $1; }
+    | T_STRINGCONSTANT          { $$ = new ConstantAST("StringConstant", *$1); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
 ;
 
 method_args:
@@ -428,39 +435,40 @@ method_args:
 ;
 
 constant:
-    T_CHARCONSTANT      { $$ = new ConstantAST("NumberExpr", *$1); delete $1; }
-    | T_INTCONSTANT     { $$ = new ConstantAST("NumberExpr", *$1); delete $1; }
-    | T_TRUE            { $$ = new ConstantAST("BoolExpr", "True"); }
-    | T_FALSE           { $$ = new ConstantAST("BoolExpr", "False"); }
+    T_CHARCONSTANT      { $$ = new ConstantAST("NumberExpr", *$1); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
+    | T_INTCONSTANT     { $$ = new ConstantAST("NumberExpr", *$1); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
+    | T_TRUE            { $$ = new ConstantAST("BoolExpr", "True"); $$->setLine(@1.first_line); $$->setCol(@1.first_column); }
+    | T_FALSE           { $$ = new ConstantAST("BoolExpr", "False"); $$->setLine(@1.first_line); $$->setCol(@1.first_column); }
 ;
 
 expr:
-      T_ID                        { $$ = new VariableExprAST(*$1); delete $1; }
+      T_ID                        { $$ = new VariableExprAST(*$1); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
     | constant                    { $$ = $1; }
     | method_call                 { $$ = $1; }
-    | expr T_PLUS expr            { $$ = new BinaryOpAST("Plus", $1, $3); }
-    | expr T_MINUS expr           { $$ = new BinaryOpAST("Minus", $1, $3); }
-    | expr T_MULT expr            { $$ = new BinaryOpAST("Mult", $1, $3); }
-    | expr T_DIV expr             { $$ = new BinaryOpAST("Div", $1, $3); }
-    | expr T_MOD expr             { $$ = new BinaryOpAST("Mod", $1, $3); }
-    | expr T_AND expr             { $$ = new BinaryOpAST("And", $1, $3); }
-    | expr T_OR expr              { $$ = new BinaryOpAST("Or", $1, $3); }
-    | expr T_EQ expr              { $$ = new BinaryOpAST("Eq", $1, $3); }
-    | expr T_NEQ expr             { $$ = new BinaryOpAST("Neq", $1, $3); }
-    | expr T_LT expr              { $$ = new BinaryOpAST("Lt", $1, $3); }
-    | expr T_LEQ expr             { $$ = new BinaryOpAST("Leq", $1, $3); }
-    | expr T_GT expr              { $$ = new BinaryOpAST("Gt", $1, $3); }
-    | expr T_GEQ expr             { $$ = new BinaryOpAST("Geq", $1, $3); }
-    | T_NOT expr                  { $$ = new UnaryOpAST("Not", $2); }
-    | T_MINUS expr %prec T_UMinus { $$ = new UnaryOpAST("UnaryMinus", $2); }
-    | expr T_LEFTSHIFT expr       { $$ = new BinaryOpAST("Leftshift", $1, $3); }
-    | expr T_RIGHTSHIFT expr      { $$ = new BinaryOpAST("Rightshift", $1, $3); }
+    | expr T_PLUS expr            { $$ = new BinaryOpAST("Plus", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_MINUS expr           { $$ = new BinaryOpAST("Minus", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_MULT expr            { $$ = new BinaryOpAST("Mult", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_DIV expr             { $$ = new BinaryOpAST("Div", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_MOD expr             { $$ = new BinaryOpAST("Mod", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_AND expr             { $$ = new BinaryOpAST("And", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_OR expr              { $$ = new BinaryOpAST("Or", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_EQ expr              { $$ = new BinaryOpAST("Eq", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_NEQ expr             { $$ = new BinaryOpAST("Neq", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_LT expr              { $$ = new BinaryOpAST("Lt", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_LEQ expr             { $$ = new BinaryOpAST("Leq", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_GT expr              { $$ = new BinaryOpAST("Gt", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_GEQ expr             { $$ = new BinaryOpAST("Geq", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | T_NOT expr                  { $$ = new UnaryOpAST("Not", $2); $$->setLine(@1.first_line); $$->setCol(@1.first_column); }
+    | T_MINUS expr %prec T_UMinus { $$ = new UnaryOpAST("UnaryMinus", $2); $$->setLine(@1.first_line); $$->setCol(@1.first_column); }
+    | expr T_LEFTSHIFT expr       { $$ = new BinaryOpAST("Leftshift", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
+    | expr T_RIGHTSHIFT expr      { $$ = new BinaryOpAST("Rightshift", $1, $3); $$->setLine(@2.first_line); $$->setCol(@2.first_column); }
     | T_LPAREN expr T_RPAREN      { $$ = $2; }
-    | T_ID T_LSB T_INTCONSTANT T_RSB       { $$ = new ArrayIDAST(*$1, std::stoi(*$3)); delete $1; }
+    | T_ID T_LSB expr T_RSB       { $$ = new ArrayIDAST(*$1, $3); $$->setLine(@1.first_line); $$->setCol(@1.first_column); delete $1; }
 
 decafpackage: T_PACKAGE T_ID T_LCB field_list method_list T_RCB
     { 
-        $$ = new PackageAST(*$2, (decafStmtList *)$4, (decafStmtList *)$5); 
+        $$ = new PackageAST(*$2, (decafStmtList *)$4, (decafStmtList *)$5);
+        $$->setLine(@1.first_line); $$->setCol(@2.first_column);
         delete $2; 
     }
 ;

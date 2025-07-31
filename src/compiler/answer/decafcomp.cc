@@ -17,10 +17,32 @@ using namespace std;
 
 /// decafAST - Base class for all abstract syntax tree nodes.
 class decafAST {
+protected:
+	int line;
+	int col;
+	
+	void semantic_error(const std::string& message) {
+		std::ostringstream oss;
+		oss << "at line " << std::to_string(this->getLine()) << ", column " << std::to_string(this->getCol()) << ": " << message;
+		throw std::runtime_error(oss.str());
+	}
+
 public:
-  virtual ~decafAST() {}
-  virtual string str() { return string(""); }
-  virtual llvm::Value *Codegen(CodegenContext& ctx) = 0;
+	virtual ~decafAST() {}
+
+	virtual string str() { return string(""); }
+	virtual llvm::Value *Codegen(CodegenContext& ctx) = 0;
+
+	void setLine(int l) { 
+		line = l;
+	}
+
+    void setCol(int c) { 
+		col = c;
+	}
+
+  	virtual int getLine() const { return line; }
+    virtual int getCol() const { return col; }
 };
 
 string getString(decafAST *d) {
