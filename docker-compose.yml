@@ -3,11 +3,15 @@ version: '3.9'
 services:
   decaf-backend:
     build:
-      context: .         # Adjust if Dockerfile is in a subfolder
+      context: .
       dockerfile: Dockerfile
     container_name: decaf-backend
     ports:
       - "3000:3000"
     environment:
       - PORT=3000
+    volumes:
+      - .:/app
+      - /app/node_modules  # Prevent host from overwriting container's node_modules
     restart: unless-stopped
+    command: npm run dev

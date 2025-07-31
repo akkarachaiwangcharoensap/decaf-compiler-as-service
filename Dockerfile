@@ -30,10 +30,13 @@ RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 && 
     update-alternatives --install /usr/bin/llvm-as llvm-as /usr/bin/llvm-as-20 100 && \
     update-alternatives --install /usr/bin/opt opt /usr/bin/opt-20 100
 
-# Create work directory
+# Environment
 ENV LLVMCONFIG=llvm-config-20
 
-# ---- Install Node.js Dependencies ----
+# Set working directory
+WORKDIR /app
+
+# Install Node.js dependencies
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
@@ -42,16 +45,21 @@ RUN \
   else echo "No lockfile found" && exit 1; \
   fi
 
-# ---- Copy Code and Build Compiler ----
+# Install nodemon globally for hot reload (optional if in local deps)
+RUN npm install -g nodemon
+
+# Copy rest of the code
 COPY . .
 
-# Build native Decaf compiler binary (adjust path as needed)
+# Build Decaf compiler binary
 RUN rm -rf src/compiler/answer/decafcomp && \
     make -C src/compiler/answer decafcomp
 
-# Ensure llvm-run is executable (if you're using it directly)
+# Ensure llvm-run is executable
 RUN chmod +x src/compiler/llvm-run
 
-# ---- Run Server ----
+# Expose port
 EXPOSE 3000
-CMD ["npx", "ts-node", "server.ts"]
+
+# Start in dev mode with hot reload
+CMD ["npm", "run", "dev"]

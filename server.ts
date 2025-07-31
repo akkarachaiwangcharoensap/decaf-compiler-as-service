@@ -22,13 +22,13 @@ app.use(cors({
 app.use(json())
 
 app.post('/compile', async (req, res) => {
-    try {
-        const { code } = req.body
-        const tempDir = join(tmpdir(), 'decaf')
-        const filename = 'temp.decaf'
-        const filepath = join(tempDir, filename)
-        const outPrefix = join(tempDir, 'temp')
+    const { code } = req.body
+    const tempDir = join(tmpdir(), 'decaf')
+    const filename = 'temp.decaf'
+    const filepath = join(tempDir, filename)
+    const outPrefix = join(tempDir, 'temp')
 
+    try {
         if (!existsSync(tempDir)) await mkdir(tempDir, { recursive: true })
         await writeFile(filepath, code)
 
@@ -46,7 +46,10 @@ app.post('/compile', async (req, res) => {
 
         res.json({ output, error })
     } catch (e: any) {
-        res.status(500).json({ error: e.message || 'Unexpected server error' })
+        const outputPath = `${outPrefix}.llvm.out`
+        const output = existsSync(outputPath) ? await readFile(outputPath, 'utf-8') : ''
+
+        res.status(500).json({ error: output || 'Unexpected server error' })
     }
 })
 
