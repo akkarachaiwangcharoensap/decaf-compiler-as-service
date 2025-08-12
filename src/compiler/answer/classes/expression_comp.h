@@ -22,12 +22,10 @@ public:
 		llvm::Value* leftVal = LHS->Codegen(ctx);
 		if (!leftVal) return nullptr;
 
-		// Convert to boolean (0->false, else true)
-		leftVal = ctx.builder.CreateICmpNE(
-			leftVal,
-			llvm::ConstantInt::get(leftVal->getType(), 0),
-			"leftbool"
-		);
+		// Check that left side is boolean type
+		llvm::Type *L_type = leftVal->getType();
+		if (!L_type->isIntegerTy(1))
+			this->semantic_error("Logical AND must be applied to booleans, LHS: " + llvmTypeToString(L_type));
 
 		// Get context + pointer to current block (for PHI function)
 		llvm::Function* function = ctx.builder.GetInsertBlock()->getParent();
@@ -45,11 +43,10 @@ public:
 		llvm::Value* rightVal = RHS->Codegen(ctx);
 		if (!rightVal) return nullptr;
 
-		rightVal = ctx.builder.CreateICmpNE(
-			rightVal, 
-			llvm::ConstantInt::get(rightVal->getType(), 0),
-			"rightbool"
-		);
+		// Check that right side is boolean type
+		llvm::Type *R_type = rightVal->getType();
+		if (!R_type->isIntegerTy(1))
+			this->semantic_error("Logical AND must be applied to booleans, RHS: " + llvmTypeToString(R_type));
 
 		ctx.builder.CreateBr(mergeBB);
 		rightBB = ctx.builder.GetInsertBlock(); //update reference after build
@@ -67,11 +64,9 @@ public:
 		llvm::Value* leftVal = LHS->Codegen(ctx);
 		if (!leftVal) return nullptr;
 
-		leftVal = ctx.builder.CreateICmpNE(
-			leftVal,
-			llvm::ConstantInt::get(leftVal->getType(), 0),
-			"leftbool"
-		);
+		llvm::Type *L_type = leftVal->getType();
+		if (!L_type->isIntegerTy(1))
+			this->semantic_error("Logical OR must be applied to booleans, LHS: " + llvmTypeToString(L_type));
 
 		llvm::Function* function = ctx.builder.GetInsertBlock()->getParent();
 		llvm::BasicBlock* leftBB = ctx.builder.GetInsertBlock();
@@ -87,11 +82,9 @@ public:
 		llvm::Value* rightVal = RHS->Codegen(ctx);
 		if (!rightVal) return nullptr;
 
-		rightVal = ctx.builder.CreateICmpNE(
-			rightVal,
-			llvm::ConstantInt::get(rightVal->getType(), 0),
-			"rightbool"
-		);
+		llvm::Type *R_type = rightVal->getType();
+		if (!R_type->isIntegerTy(1))
+			this->semantic_error("Logical OR must be applied to booleans, RHS: " + llvmTypeToString(R_type));
 
 		// Merge block
 		ctx.builder.CreateBr(mergeBB);
@@ -123,25 +116,25 @@ public:
         if (Op == "Plus") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateAdd(L, R, "addtmp");
-            this->semantic_error("Addition must be ingeters, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Addition must be between ingeters, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Minus") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateSub(L, R, "subtmp");
-            this->semantic_error("Subtraction must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Subtraction must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Mult") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateMul(L, R, "multmp");
-            this->semantic_error("Multiplication must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Multiplication must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Div") {
             // signed division
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateSDiv(L, R, "divtmp");
-            this->semantic_error("Division must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Division must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Mod") {
             // signed modulo
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateSRem(L, R, "modtmp");
-            this->semantic_error("Modulo must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Modulo must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Eq") {
             if (L_type != R_type) 
                 this->semantic_error("Types do not match in equality check: " + getString(LHS) + " vs " + getString(RHS));
@@ -153,27 +146,27 @@ public:
         } else if (Op == "Lt") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSLT(L, R, "lttmp");
-            this->semantic_error("Less than must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Less than operations must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Leq") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSLE(L, R, "letmp");
-            this->semantic_error("Less than or equal must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Less than or equal operations must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Gt") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSGT(L, R, "gttmp");
-            this->semantic_error("Greater than must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Greater than operations must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Geq") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateICmpSGE(L, R, "getmp");
-            this->semantic_error("Greater than or equal must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Greater than or equal operations must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Leftshift") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateShl(L, R, "shltmp");
-            this->semantic_error("Left shift must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Left shift operations must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } else if (Op == "Rightshift") {
             if ((L_type->isIntegerTy(32) && R_type->isIntegerTy(32)))
                 return ctx.builder.CreateLShr(L, R, "rshrtmp");
-            this->semantic_error("Right shift must be integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
+            this->semantic_error("Right shift operations must be between integers, LHS: " + llvmTypeToString(L_type) + " RHS: " + llvmTypeToString(R_type));
         } 
 
         this->semantic_error("Unknown binary operator: " + Op);
@@ -313,8 +306,12 @@ public:
         if (!keyVal)
             this->semantic_error("Invalid index expression in array assignment");
         
+        // Only integer array indexing is allowed.
         if (keyVal->getType() != ctx.builder.getInt32Ty()) {
-            keyVal = ctx.builder.CreateIntCast(keyVal, ctx.builder.getInt32Ty(), true, "key_cast");
+            this->semantic_error(
+                "Invalid index type in array assignment. Expected int32, got: " +
+                llvmTypeToString(keyVal->getType())
+            );
         }
 
         llvm::Value* zero = llvm::ConstantInt::get(ctx.builder.getInt32Ty(), 0);

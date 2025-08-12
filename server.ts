@@ -49,7 +49,7 @@ app.post('/compile', async (req, res) => {
         const outputPath = `${outPrefix}.llvm.out`
         const output = existsSync(outputPath) ? await readFile(outputPath, 'utf-8') : ''
 
-        res.status(500).json({ error: output || 'Unexpected server error' })
+        res.status(500).json({ error: output || `Unexpected server error: ${e}` })
     }
 })
 

@@ -282,7 +282,7 @@ public:
                     "return type mismatch in function '" + F->getName().str() +
                     "': expected " + llvmTypeToString(RetTy) +
                     ", got " + llvmTypeToString(val_type) +
-                    " from expression " + getString(Expr)
+                    " from " + getString(Expr)
                 );
             }
 

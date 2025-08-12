@@ -38,7 +38,7 @@ public:
         std::vector<llvm::Type*> paramTypes;
 
         if (ctx.symbols.is_declared_in_current_scope(ExternName))
-            this->semantic_error("Identifier already exits in scope " + ExternName);
+            this->semantic_error("Identifier already exits in scope: " + ExternName);
 
         // Convert ParamTypes (decafStmtList*) to llvm::Type*
         for (auto param : *ParamTypes) {
@@ -72,11 +72,17 @@ public:
             this->semantic_error("Unsupported extern return type: " + retStr);
         }
 
+        std::string mangledName;
+        if (ExternName == "main"){
+            mangledName = ExternName + "_Extern";
+        }else{
+            mangledName = ExternName;
+        }
         llvm::FunctionType* funcType = llvm::FunctionType::get(retType, paramTypes, false);
         llvm::Function* function = llvm::Function::Create(
             funcType,
             llvm::Function::ExternalLinkage,
-            ExternName,
+            mangledName,
             ctx.module
         );
 

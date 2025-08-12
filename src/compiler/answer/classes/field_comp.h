@@ -5,6 +5,9 @@
 
 #include "llvm/type_utils.h"
 #include "../decafcomp.cc"
+
+#define MAX_ARRAY_SIZE 1000000
+
 class ArrayType : public decafAST {
     DecafType* Type;
     string Size;
@@ -250,6 +253,15 @@ public:
             if (arraySize <= 0)
                 this->semantic_error("Array index must be greater than zero: " + std::to_string(arraySize));
             
+            if (arraySize > MAX_ARRAY_SIZE) {
+                this->semantic_error(
+                    "Array size exceeds compiler maximum (" +
+                    std::to_string(MAX_ARRAY_SIZE) + "): " +
+                    std::to_string(arraySize)
+                );
+            }
+
+
             llvm::ArrayType* llvmArrayTy = llvm::ArrayType::get(llvmElemType, arraySize);
             llvm::Constant* zeroInit = llvm::ConstantAggregateZero::get(llvmArrayTy);
 

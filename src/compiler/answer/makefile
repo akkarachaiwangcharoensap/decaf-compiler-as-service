@@ -42,7 +42,7 @@ $(llvmtargets): %: %.y
 	$(mv) $@.tab.c $@.tab.cc
 	flex -o$@.lex.cc $@.lex
 	clang -g -c decaf-stdlib.c
-	clang++ $(cppflags) -o $(bindir)/$@ $@.tab.cc $@.lex.cc decaf-stdlib.o $(shell $(llvmconfig) --cxxflags --cppflags --cflags --ldflags --libs core native) $(mylibs)
+	clang++ -o $(bindir)/$@ $@.tab.cc $@.lex.cc decaf-stdlib.o $(shell $(llvmconfig) --cxxflags --cppflags --cflags --ldflags --libs core native) $(mylibs) $(cppflags) 
 	$(rm) $@.tab.h $@.tab.cc $@.lex.cc 
 
 $(llvmcpp): %: %.cc

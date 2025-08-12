@@ -28,7 +28,8 @@ RUN apt-get update && apt-get install -y \
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 && \
     update-alternatives --install /usr/bin/llc llc /usr/bin/llc-20 100 && \
     update-alternatives --install /usr/bin/llvm-as llvm-as /usr/bin/llvm-as-20 100 && \
-    update-alternatives --install /usr/bin/opt opt /usr/bin/opt-20 100
+    update-alternatives --install /usr/bin/opt opt /usr/bin/opt-20 100 && \
+    update-alternatives --install /usr/bin/llvm-dis llvm-dis /usr/bin/llvm-dis-20 100
 
 # Environment
 ENV LLVMCONFIG=llvm-config-20

@@ -111,8 +111,15 @@ public:
     }
 
     llvm::Value* Codegen(CodegenContext& ctx) override {
+        // Check symbol table
+        Descriptor* funcDesc = ctx.symbols.lookup(Method);
+        if (!funcDesc)
+            this->semantic_error("Function not in symbol table: " + Method);
+        if (funcDesc->getKind() != Descriptor::Kind::Function)
+            this->semantic_error("Identifier is not a function in this scope: " + Method);
+        
         // Retrieve the function by name
-        llvm::Function* CalleeF = ctx.module->getFunction(Method);
+        llvm::Function* CalleeF = llvm::dyn_cast<llvm::Function>(funcDesc->getValue());
         if (!CalleeF)
             this->semantic_error("Unknown function: " + Method);
 
@@ -219,7 +226,7 @@ public:
         llvm::Type* RetType = getLLVMTypeFromString(ReturnType->getTypeString(), ctx.llvmContext);
 
         if (ctx.symbols.is_declared_in_current_scope(MethodName))
-            this->semantic_error("Identifier already exits in scope " + MethodName);
+            this->semantic_error("Identifier already exits in scope: " + MethodName);
         
         std::vector<llvm::Type*> ArgTypes;
         std::vector<std::string> ArgNames;
@@ -229,8 +236,14 @@ public:
             ArgNames.push_back(param->getName());
         }
 
+        std::string mangledName;
+        if (MethodName == "main"){
+            mangledName = MethodName;
+        }else{
+            mangledName = ctx.module->getModuleIdentifier() + "_" + MethodName;
+        }
         llvm::FunctionType* FT = llvm::FunctionType::get(RetType, ArgTypes, false);
-        llvm::Function* F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, MethodName, ctx.module);
+        llvm::Function* F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, mangledName, ctx.module);
 
         Descriptor* funcDesc = new Descriptor(MethodName, F, ArgTypes);
         ctx.symbols.insert(MethodName, funcDesc);
@@ -245,7 +258,16 @@ public:
 
     /// Pass 2: Codegen the method body
     llvm::Value* Codegen(CodegenContext& ctx) override {
-        llvm::Function* F = ctx.module->getFunction(MethodName);
+
+        // Check symbol table
+        Descriptor* funcDesc = ctx.symbols.lookup(MethodName);
+        if (!funcDesc)
+            this->semantic_error("Function not in symbol table: " + MethodName);
+        if (funcDesc->getKind() != Descriptor::Kind::Function)
+            this->semantic_error("Identifier is not a function in this scope: " + MethodName);
+        
+        // Retrieve the function by name
+        llvm::Function* F = llvm::dyn_cast<llvm::Function>(funcDesc->getValue());
         if (!F) 
             this->semantic_error("Function not declared: " + MethodName);
 
@@ -350,13 +372,13 @@ public:
 		if (ExternList) {
 			val = ExternList->Codegen(ctx);
 		}
-        
+        ctx.symbols.push_scope();
 		if (PackageDef) {
 			val = PackageDef->Codegen(ctx);
 		} else {
             this->semantic_error("No package definition in decaf program");
 		}
-
+        ctx.symbols.pop_scope();
 		return val;
 	}
 };
