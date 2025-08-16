@@ -294,11 +294,15 @@ public:
         if (!ctx.builder.GetInsertBlock()->getTerminator()) {
             if (F->getReturnType()->isVoidTy()) {
                 if (MethodName == "main") {
-                    this->semantic_error("When main returns void it currently should not be allowed.");
+                    this->semantic_error("Main should only return int, not void");
                 } else {
                     ctx.builder.CreateRetVoid();
                 }
-            } else {
+            }
+            else if (F->getReturnType()->isIntegerTy(1)){
+                ctx.builder.CreateRet(llvm::ConstantInt::get(F->getReturnType(), 1));
+            }
+            else {
                 ctx.builder.CreateRet(llvm::ConstantInt::get(F->getReturnType(), 0));
             }
         }

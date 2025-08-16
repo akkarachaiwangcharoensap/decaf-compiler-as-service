@@ -204,7 +204,7 @@ public:
         llvm::Type* cond_type = condVal->getType();
         if (!cond_type->isIntegerTy(1)) {
             this->semantic_error(
-                "While condition needs to be a boolean value, currently " 
+                "For condition needs to be a boolean value, currently " 
                 + getString(Cond) 
                 + " is considered this type " 
                 + llvmTypeToString(cond_type)
@@ -279,7 +279,7 @@ public:
             }
             else if (val_type != RetTy) {
                 this->semantic_error(
-                    "return type mismatch in function '" + F->getName().str() +
+                    "Return type mismatch in function '" + F->getName().str() +
                     "': expected " + llvmTypeToString(RetTy) +
                     ", got " + llvmTypeToString(val_type) +
                     " from " + getString(Expr)

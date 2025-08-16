@@ -137,7 +137,7 @@ while                                       { return T_WHILE; }
 (\x0D|\x09|\x0B|\x0C|\x20)+             { column += yyleng; }
 
   /* Comments */
-\/\/{char_no_nl}*\n                     { lineno++; column = 1; }
+\/\/[^\n]*\n                     { lineno++; column = 1; }
 . {
     cerr << "Error at line " << lineno << ", column " << column
          << ": unexpected character '" << yytext[0] << "'" << endl;

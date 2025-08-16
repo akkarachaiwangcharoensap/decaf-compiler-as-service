@@ -16,87 +16,93 @@ public:
         return "BinaryExpr(" + Op + "," + getString(LHS) + "," + getString(RHS) + ")";
     }
 
-	// Helpers for short-circuiting boolean operations
-	llvm::Value* ShortCircuitAnd(CodegenContext& ctx) {
-		// Need to evaluate left side either way
-		llvm::Value* leftVal = LHS->Codegen(ctx);
-		if (!leftVal) return nullptr;
+	// Short-circuit logical AND
+    llvm::Value* ShortCircuitAnd(CodegenContext& ctx) {
+        llvm::Value* leftVal = LHS->Codegen(ctx);
+        if (!leftVal) return nullptr;
 
-		// Check that left side is boolean type
-		llvm::Type *L_type = leftVal->getType();
-		if (!L_type->isIntegerTy(1))
-			this->semantic_error("Logical AND must be applied to booleans, LHS: " + llvmTypeToString(L_type));
+        if (!leftVal->getType()->isIntegerTy(1))
+            this->semantic_error("Logical AND must be applied to booleans, LHS: " + llvmTypeToString(leftVal->getType()));
 
-		// Get context + pointer to current block (for PHI function)
-		llvm::Function* function = ctx.builder.GetInsertBlock()->getParent();
-		llvm::BasicBlock* leftBB = ctx.builder.GetInsertBlock();
+        llvm::Function* function = ctx.builder.GetInsertBlock()->getParent();
 
-		// Basic blocks for flow control
-		llvm::BasicBlock* rightBB = llvm::BasicBlock::Create(ctx.llvmContext, "and_right", function);
-		llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(ctx.llvmContext, "and_merge", function);
+        // Check if current block already has a terminator
+        llvm::BasicBlock* predBB = ctx.builder.GetInsertBlock();
+        if (predBB->getTerminator()) {
+            // Create a dummy block to hold the conditional branch
+            predBB = llvm::BasicBlock::Create(ctx.llvmContext, "and_pred_dummy", function);
+            ctx.builder.SetInsertPoint(predBB);
+        }
 
-		// Left is false => skip right evaluation
-		ctx.builder.CreateCondBr(leftVal, rightBB, mergeBB);
+        // Blocks for RHS evaluation and merge
+        llvm::BasicBlock* rightBB = llvm::BasicBlock::Create(ctx.llvmContext, "and_right", function);
+        llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(ctx.llvmContext, "and_merge", function);
 
-		// Else evaluate right side
-		ctx.builder.SetInsertPoint(rightBB);
-		llvm::Value* rightVal = RHS->Codegen(ctx);
-		if (!rightVal) return nullptr;
+        // Branch: left true -> evaluate right, left false -> skip to merge
+        ctx.builder.CreateCondBr(leftVal, rightBB, mergeBB);
 
-		// Check that right side is boolean type
-		llvm::Type *R_type = rightVal->getType();
-		if (!R_type->isIntegerTy(1))
-			this->semantic_error("Logical AND must be applied to booleans, RHS: " + llvmTypeToString(R_type));
+        // Right side
+        ctx.builder.SetInsertPoint(rightBB);
+        llvm::Value* rightVal = RHS->Codegen(ctx);
+        if (!rightVal) return nullptr;
 
-		ctx.builder.CreateBr(mergeBB);
-		rightBB = ctx.builder.GetInsertBlock(); //update reference after build
+        if (!rightVal->getType()->isIntegerTy(1))
+            this->semantic_error("Logical AND must be applied to booleans, RHS: " + llvmTypeToString(rightVal->getType()));
 
-		// Merge results using PHI function
-		ctx.builder.SetInsertPoint(mergeBB);
-		llvm::PHINode* result = ctx.builder.CreatePHI(ctx.builder.getInt1Ty(), 2, "andresult");
-		result->addIncoming(llvm::ConstantInt::getFalse(ctx.llvmContext), leftBB);
-		result->addIncoming(rightVal, rightBB);
+        ctx.builder.CreateBr(mergeBB);
+        rightBB = ctx.builder.GetInsertBlock(); // update reference after creating branch
 
-		return result;
-	}
+        // Merge PHI
+        ctx.builder.SetInsertPoint(mergeBB);
+        llvm::PHINode* result = ctx.builder.CreatePHI(ctx.builder.getInt1Ty(), 2, "andresult");
+        result->addIncoming(llvm::ConstantInt::getFalse(ctx.llvmContext), predBB); // left false
+        result->addIncoming(rightVal, rightBB); // left true -> right value
 
-	llvm::Value* ShortCircuitOr(CodegenContext& ctx) {
-		llvm::Value* leftVal = LHS->Codegen(ctx);
-		if (!leftVal) return nullptr;
+        return result;
+    }
 
-		llvm::Type *L_type = leftVal->getType();
-		if (!L_type->isIntegerTy(1))
-			this->semantic_error("Logical OR must be applied to booleans, LHS: " + llvmTypeToString(L_type));
+    // Short-circuit logical OR
+    llvm::Value* ShortCircuitOr(CodegenContext& ctx) {
+        llvm::Value* leftVal = LHS->Codegen(ctx);
+        if (!leftVal) return nullptr;
 
-		llvm::Function* function = ctx.builder.GetInsertBlock()->getParent();
-		llvm::BasicBlock* leftBB = ctx.builder.GetInsertBlock();
+        if (!leftVal->getType()->isIntegerTy(1))
+            this->semantic_error("Logical OR must be applied to booleans, LHS: " + llvmTypeToString(leftVal->getType()));
 
-		llvm::BasicBlock* rightBB = llvm::BasicBlock::Create(ctx.llvmContext, "or_right", function);
-		llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(ctx.llvmContext, "or_merge", function);
-		
-		// Left is true => skip right evaluation and just merge
-		ctx.builder.CreateCondBr(leftVal, mergeBB, rightBB);
+        llvm::Function* function = ctx.builder.GetInsertBlock()->getParent();
 
-		// Else evaluate(build) right side
-		ctx.builder.SetInsertPoint(rightBB);
-		llvm::Value* rightVal = RHS->Codegen(ctx);
-		if (!rightVal) return nullptr;
+        // Check if current block already has a terminator
+        llvm::BasicBlock* predBB = ctx.builder.GetInsertBlock();
+        if (predBB->getTerminator()) {
+            predBB = llvm::BasicBlock::Create(ctx.llvmContext, "or_pred_dummy", function);
+            ctx.builder.SetInsertPoint(predBB);
+        }
 
-		llvm::Type *R_type = rightVal->getType();
-		if (!R_type->isIntegerTy(1))
-			this->semantic_error("Logical OR must be applied to booleans, RHS: " + llvmTypeToString(R_type));
+        llvm::BasicBlock* rightBB = llvm::BasicBlock::Create(ctx.llvmContext, "or_right", function);
+        llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(ctx.llvmContext, "or_merge", function);
 
-		// Merge block
-		ctx.builder.CreateBr(mergeBB);
-		rightBB = ctx.builder.GetInsertBlock();
+        // Branch: left true -> skip right, left false -> evaluate right
+        ctx.builder.CreateCondBr(leftVal, mergeBB, rightBB);
 
-		ctx.builder.SetInsertPoint(mergeBB);
-		llvm::PHINode* result = ctx.builder.CreatePHI(ctx.builder.getInt1Ty(), 2, "orresult");
-		result->addIncoming(llvm::ConstantInt::getTrue(ctx.llvmContext), leftBB);
-		result->addIncoming(rightVal, rightBB);
+        // Right side
+        ctx.builder.SetInsertPoint(rightBB);
+        llvm::Value* rightVal = RHS->Codegen(ctx);
+        if (!rightVal) return nullptr;
 
-		return result;
-	}
+        if (!rightVal->getType()->isIntegerTy(1))
+            this->semantic_error("Logical OR must be applied to booleans, RHS: " + llvmTypeToString(rightVal->getType()));
+
+        ctx.builder.CreateBr(mergeBB);
+        rightBB = ctx.builder.GetInsertBlock();
+
+        // Merge PHI
+        ctx.builder.SetInsertPoint(mergeBB);
+        llvm::PHINode* result = ctx.builder.CreatePHI(ctx.builder.getInt1Ty(), 2, "orresult");
+        result->addIncoming(llvm::ConstantInt::getTrue(ctx.llvmContext), predBB); // left true
+        result->addIncoming(rightVal, rightBB); // left false -> right value
+
+        return result;
+    }
 
 	llvm::Value *Codegen(CodegenContext& ctx) override {
 		// Check for short-circuit first BEFORE evaluating L and R

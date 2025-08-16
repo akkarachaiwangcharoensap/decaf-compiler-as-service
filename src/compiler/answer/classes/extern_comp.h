@@ -42,11 +42,18 @@ public:
 
         // Convert ParamTypes (decafStmtList*) to llvm::Type*
         for (auto param : *ParamTypes) {
-            ExternType* externType = dynamic_cast<ExternType*>(param);
-            if (!externType)
-                this->semantic_error("Invalid extern parameter type");
+            std::string t;
 
-            std::string t = externType->str();
+            if (auto externType = dynamic_cast<ExternType*>(param)) {
+                t = externType->str();
+            } 
+            else if (auto decafType = dynamic_cast<DecafType*>(param)) {
+                t = decafType->str();
+            } 
+            else {
+                this->semantic_error("Invalid extern parameter type");
+            }
+
             if (t.find("IntType") != std::string::npos) {
                 paramTypes.push_back(llvm::Type::getInt32Ty(ctx.llvmContext));
             } else if (t.find("BoolType") != std::string::npos) {

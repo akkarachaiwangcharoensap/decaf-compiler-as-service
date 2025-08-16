@@ -2,6 +2,8 @@
 #define FIELD_COMP_H
 
 #include <string>
+#include <cstdint>
+#include <cctype>
 
 #include "llvm/type_utils.h"
 #include "../decafcomp.cc"
@@ -60,16 +62,34 @@ public:
         return Type + "(" + Value + ")";
     }
 
-    int parseIntLiteral(const std::string& value) {
-        try {
-            return std::stoll(value, nullptr, 0); // base 0 autodetects 0x (hex), 0 (octal), etc.
-        } catch (const std::invalid_argument& e) {
-            this->semantic_error("Invalid numeric literal: " + value);
-        } catch (const std::out_of_range& e) {
-            this->semantic_error("Numeric literal out of range: " + value);
+    int32_t parseAndWrapToI32(const string &input) {
+        uint64_t result = 0;
+        uint64_t modBase = (1ULL << 32);
+        int base = 10;  // default decimal
+        size_t start = 0;
+
+        // Hex detection
+        if (input.size() > 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X')) {
+            base = 16;
+            start = 2;
         }
 
-        return -1;
+        // Parse each character
+        for (size_t i = start; i < input.size(); i++) {
+            char c = input[i];
+            int digit = -1;
+
+            if (isdigit(c)) digit = c - '0';
+            else if (base == 16 && isxdigit(c)) {
+                digit = 10 + (tolower(c) - 'a');
+            }
+
+            if (digit >= 0 && digit < base) {
+                result = (result * base + digit) % modBase;
+            }
+        }
+
+        return static_cast<int32_t>(result);
     }
 
     std::string parseStringLiteral(const std::string& s) {
@@ -103,7 +123,7 @@ public:
 
     llvm::Value *Codegen(CodegenContext& ctx) override {
         if (Type == "NumberExpr") {
-            int intValue = parseIntLiteral(Value);
+            int32_t intValue = parseAndWrapToI32(Value);
             return llvm::ConstantInt::get(ctx.builder.getInt32Ty(), intValue, true);
 
         } else if (Type == "BoolExpr") {
@@ -231,6 +251,36 @@ public:
         return result;
     }
 
+    int32_t parseAndWrapToI32(const string &input) {
+        uint64_t result = 0;
+        uint64_t modBase = (1ULL << 32);
+        int base = 10;  // default decimal
+        size_t start = 0;
+
+        // Hex detection
+        if (input.size() > 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X')) {
+            base = 16;
+            start = 2;
+        }
+
+        // Parse each character
+        for (size_t i = start; i < input.size(); i++) {
+            char c = input[i];
+            int digit = -1;
+
+            if (isdigit(c)) digit = c - '0';
+            else if (base == 16 && isxdigit(c)) {
+                digit = 10 + (tolower(c) - 'a');
+            }
+
+            if (digit >= 0 && digit < base) {
+                result = (result * base + digit) % modBase;
+            }
+        }
+
+        return static_cast<int32_t>(result);
+    }
+
     llvm::Value *Codegen(CodegenContext& ctx) override {
         for (auto stmt : *IdentList) {
             SimpleIDAST* id = dynamic_cast<SimpleIDAST*>(stmt);
@@ -249,7 +299,7 @@ public:
             std::string elemTypeStr = getString(elemType);
             llvm::Type* llvmElemType = getLLVMTypeFromString(elemTypeStr, ctx.llvmContext);
 
-            int arraySize = std::stoi(arrType->getSize());
+            int arraySize = parseAndWrapToI32(arrType->getSize());
             if (arraySize <= 0)
                 this->semantic_error("Array index must be greater than zero: " + std::to_string(arraySize));
             
